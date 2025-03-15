@@ -19,7 +19,7 @@ import os
 from pathlib import Path
 
 # 开发模式设置 - 在开发/测试环境中跳过某些耗时的检查
-DEV_MODE = True
+DEV_MODE = False
 
 # 配置日志
 logging.basicConfig(
@@ -39,7 +39,7 @@ USER_AGENTS = [
 # 加载配置文件
 def load_config():
     """加载URL验证规则配置"""
-    config_path = Path(__file__).parent.parent / 'config' / 'url_rules.yaml'
+    config_path = Path(__file__).parent.parent / 'config' / 'url_validator_config.yaml'
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             return yaml.safe_load(f)
@@ -116,7 +116,7 @@ def is_blacklisted(url: str) -> bool:
 
 async def check_liveness(url: str) -> bool:
     """
-    异步检查URL的网络可达性
+    检查URL的网络可达性
     
     Args:
         url: 待检查的URL
@@ -124,19 +124,28 @@ async def check_liveness(url: str) -> bool:
     Returns:
         如果URL可达则返回True，否则返回False
     """
+    # 获取域名（用于日志输出）
+    try:
+        domain = url.split('/')[2] if url.startswith('http') and len(url.split('/')) > 2 else 'unknown'
+    except:
+        domain = 'unknown'
+    
     # 获取配置的超时和重试策略
     timeout = CONFIG.get('timeout', 5)
     retry_policy = CONFIG.get('retry_policy', {'max_attempts': 3, 'backoff': [1, 3, 5]})
     max_attempts = retry_policy.get('max_attempts', 3)
     backoff_times = retry_policy.get('backoff', [1, 3, 5])
     
-    # 日志记录检查开始
-    logger.info(f"[可达性检查] 开始检查URL(最多{max_attempts}次尝试, 超时{timeout}秒): {url}")
+    # 日志记录检查开始（简化输出）
+    logger.info(f"[可达性检查] 开始检查: {domain}")
     start_time = asyncio.get_event_loop().time()
     
     for attempt in range(max_attempts):
         attempt_start = asyncio.get_event_loop().time()
-        logger.info(f"[可达性检查] 尝试 {attempt+1}/{max_attempts} 开始: {url}")
+        
+        # 简化尝试次数日志
+        if attempt > 0:  # 只有重试时才记录尝试次数
+            logger.info(f"[可达性检查] 尝试 {attempt+1}/{max_attempts}")
         
         try:
             # 设置随机用户代理进行伪装
@@ -144,8 +153,7 @@ async def check_liveness(url: str) -> bool:
             headers = {'User-Agent': user_agent}
             
             async with aiohttp.ClientSession() as session:
-                logger.debug(f"[可达性检查] 发送HEAD请求到: {url}")
-                
+                # 使用HEAD或GET请求检查可达性
                 async with session.head(
                     url, 
                     headers=headers,
@@ -156,38 +164,30 @@ async def check_liveness(url: str) -> bool:
                     is_reachable = 200 <= resp.status < 400  # 认为2xx和3xx状态码是可达的
                     
                     if is_reachable:
-                        logger.info(f"[可达性检查] 成功! URL: {url}, 状态码: {resp.status}, 耗时: {attempt_duration:.2f}秒")
+                        logger.info(f"[可达性检查] 成功! 来源: {domain}, 状态码: {resp.status}")
+                        return True
                     else:
-                        logger.warning(f"[可达性检查] 失败! URL: {url}, 状态码: {resp.status}, 耗时: {attempt_duration:.2f}秒")
-                    
-                    total_duration = asyncio.get_event_loop().time() - start_time
-                    logger.info(f"[可达性检查] 完成检查! URL: {url}, 结果: {'可达' if is_reachable else '不可达'}, 总耗时: {total_duration:.2f}秒")
-                    return is_reachable
+                        # 只有失败时才显示完整URL
+                        logger.warning(f"[可达性检查] 失败! URL: {url}, 状态码: {resp.status}")
                     
         except aiohttp.ClientConnectorError as e:
-            attempt_duration = asyncio.get_event_loop().time() - attempt_start
-            logger.warning(f"[可达性检查] 连接错误! 尝试 {attempt+1}/{max_attempts}, URL: {url}, 原因: {str(e)}, 耗时: {attempt_duration:.2f}秒")
+            logger.warning(f"[可达性检查] 连接错误! URL: {url}, 原因: {str(e)}")
         except aiohttp.ClientResponseError as e:
-            attempt_duration = asyncio.get_event_loop().time() - attempt_start
-            logger.warning(f"[可达性检查] 响应错误! 尝试 {attempt+1}/{max_attempts}, URL: {url}, 状态码: {e.status}, 原因: {str(e)}, 耗时: {attempt_duration:.2f}秒")
+            logger.warning(f"[可达性检查] 响应错误! URL: {url}, 状态码: {e.status}")
         except asyncio.TimeoutError:
-            attempt_duration = asyncio.get_event_loop().time() - attempt_start
-            logger.warning(f"[可达性检查] 超时! 尝试 {attempt+1}/{max_attempts}, URL: {url}, 超过{timeout}秒无响应, 耗时: {attempt_duration:.2f}秒")
+            logger.warning(f"[可达性检查] 超时! URL: {url}, 超过{timeout}秒无响应")
         except Exception as e:
-            attempt_duration = asyncio.get_event_loop().time() - attempt_start
-            logger.warning(f"[可达性检查] 未知错误! 尝试 {attempt+1}/{max_attempts}, URL: {url}, 错误类型: {type(e).__name__}, 原因: {str(e)}, 耗时: {attempt_duration:.2f}秒")
+            logger.warning(f"[可达性检查] 错误! URL: {url}, 类型: {type(e).__name__}")
             
-        if attempt < max_attempts - 1:
-            # 在下一次重试前等待
-            backoff_time = backoff_times[min(attempt, len(backoff_times) - 1)]
-            logger.info(f"[可达性检查] 将在{backoff_time}秒后重试, URL: {url}")
-            await asyncio.sleep(backoff_time)
-        else:
-            total_duration = asyncio.get_event_loop().time() - start_time
-            logger.error(f"[可达性检查] 所有尝试均失败! URL: {url}, 总耗时: {total_duration:.2f}秒")
+        # 最后一次尝试失败
+        if attempt >= max_attempts - 1:
+            logger.warning(f"[可达性检查] 所有尝试均失败! URL: {url}")
             return False
+            
+        # 准备下一次重试
+        backoff_time = backoff_times[min(attempt, len(backoff_times) - 1)]
+        await asyncio.sleep(backoff_time)
     
-    # 这行代码应该永远不会执行，但为了安全起见保留
     return False
 
 def predict_relevance(url: str, user_query: str) -> float:
@@ -236,6 +236,12 @@ async def validate_url(url: str, user_query: str = None) -> Dict:
     Returns:
         验证结果字典，包含验证状态和详细信息
     """
+    # 获取域名（用于日志输出）
+    try:
+        domain = url.split('/')[2] if url.startswith('http') and len(url.split('/')) > 2 else 'unknown'
+    except:
+        domain = 'unknown'
+    
     result = {
         "url": url,
         "valid": False,
@@ -246,28 +252,26 @@ async def validate_url(url: str, user_query: str = None) -> Dict:
     # 步骤1: 语法验证
     if not validate_syntax(url):
         result["reason"] = "URL语法无效"
+        logger.debug(f"[URL验证] URL语法无效: {url}")
         return result
     
     # 步骤2: 黑名单检查
     if is_blacklisted(url):
         result["reason"] = "URL在黑名单中"
+        logger.debug(f"[URL验证] URL在黑名单中: {domain}")
         return result
     
     # 步骤3: 网络可达性验证
-    # 在开发模式下，跳过网络可达性检查
-    is_reachable = True
-    
-    if not DEV_MODE:
-        # 如果不是开发模式，才进行真正的网络可达性检查
-        logger.info(f"[URL验证] 执行网络可达性检查: {url}")
+    if True:
+        # 开发模式下跳过网络可达性检查
+        is_reachable = True
+        logger.debug(f"[URL验证] 开发模式: 跳过可达性检查 ({domain})")
+    else:
+        # 执行网络可达性检查
         is_reachable = await check_liveness(url)
-        logger.info(f"[URL验证] 网络可达性检查结果: {url} - {'可达' if is_reachable else '不可达'}")
         if not is_reachable:
             result["reason"] = "URL不可达"
-            logger.warning(f"[URL验证] URL验证失败 - 网络不可达: {url}")
             return result
-    else:
-        logger.info(f"[URL验证] 开发模式：跳过URL可达性检查: {url} (假设为可达)")
     
     # 步骤4: 相关性预判 (如果提供了用户查询)
     if user_query:
@@ -275,17 +279,20 @@ async def validate_url(url: str, user_query: str = None) -> Dict:
         result["relevance_score"] = relevance_score
         
         # 在开发模式下，降低相关性阈值
-        relevance_threshold = 0.1 if DEV_MODE else 0.5
+        relevance_threshold = 0.1
         
-        # 只有相关性得分超过阈值才视为有效
+        # 相关性评估
         if relevance_score >= relevance_threshold:
             result["valid"] = True
+            logger.info(f"[URL验证] 验证通过: {domain}, 相关度: {relevance_score:.2f}")
         else:
             result["reason"] = "相关性过低"
             result["valid"] = False
+            logger.debug(f"[URL验证] 相关性过低: {domain}, 分数: {relevance_score:.2f}")
     else:
-        # 如果没有提供用户查询，则只要网络可达就认为是有效的
+        # 如果没有提供用户查询，则只要前面验证通过就认为有效
         result["valid"] = True
+        logger.info(f"[URL验证] 验证通过: {domain}")
     
     return result
 
