@@ -1,0 +1,138 @@
+{
+    "raw_input": "我想了解冠心病的最新治疗方法，特别是PCI手术后如何用药 https://www.nejm.org/doi/full/10.1056/NEJMoa2034160",
+    "timestamp": "current_timestamp",
+    "process_steps": [
+        {
+            "step": "url_validation",
+            "detected_urls": [
+                "https://www.nejm.org/doi/full/10.1056/NEJMoa2034160"
+            ],
+            "validated_urls": []
+        },
+        {
+            "step": "intent_analysis",
+            "intent_data": {
+                "raw_text": "我想了解冠心病的最新治疗方法，特别是PCI手术后如何用药 https://www.nejm.org/doi/full/10.1056/NEJMoa2034160",
+                "entities": [
+                    {
+                        "text": "冠心病",
+                        "start": 4,
+                        "end": 7,
+                        "standard_form": "冠状动脉粥样硬化性心脏病",
+                        "type": "MEDICAL_TERM"
+                    }
+                ],
+                "intent_analysis": {
+                    "intent_class": "学术研究",
+                    "key_terms": [
+                        "冠心病",
+                        "最新治疗方案"
+                    ],
+                    "temporal_constraint": "2023年至今"
+                },
+                "search_params": {
+                    "precision": "high",
+                    "recall": "medium"
+                }
+            }
+        },
+        {
+            "step": "target_generation",
+            "target_count": 6
+        }
+    ],
+    "intent": {
+        "raw_text": "我想了解冠心病的最新治疗方法，特别是PCI手术后如何用药 https://www.nejm.org/doi/full/10.1056/NEJMoa2034160",
+        "entities": [
+            {
+                "text": "冠心病",
+                "start": 4,
+                "end": 7,
+                "standard_form": "冠状动脉粥样硬化性心脏病",
+                "type": "MEDICAL_TERM"
+            }
+        ],
+        "intent_analysis": {
+            "intent_class": "学术研究",
+            "key_terms": [
+                "冠心病",
+                "最新治疗方案"
+            ],
+            "temporal_constraint": "2023年至今"
+        },
+        "search_params": {
+            "precision": "high",
+            "recall": "medium"
+        }
+    },
+    "targets": [
+        {
+            "url": "https://www.nejm.org/doi/full/10.1056/NEJMoa2034160",
+            "keywords": [
+                "冠心病",
+                "最新治疗方案"
+            ],
+            "source": "user_input",
+            "relevance_score": 1.0,
+            "id": "1741862946-f5f274aa",
+            "created_at": "2025-03-13T18:49:06.404824"
+        },
+        {
+            "url": "https://pubmed.ncbi.nlm.nih.gov/",
+            "keywords": [
+                "冠心病",
+                "最新治疗方案"
+            ],
+            "source": "search_engine",
+            "relevance_score": 0.9,
+            "id": "1741862948-fa27d15a",
+            "created_at": "2025-03-13T18:49:08.157146"
+        },
+        {
+            "url": "https://www.nejm.org/",
+            "keywords": [
+                "冠心病",
+                "最新治疗方案"
+            ],
+            "source": "search_engine",
+            "relevance_score": 0.85,
+            "id": "1741862948-f1ae3c41",
+            "created_at": "2025-03-13T18:49:08.157789"
+        },
+        {
+            "url": "https://www.thelancet.com/",
+            "keywords": [
+                "冠心病",
+                "最新治疗方案"
+            ],
+            "source": "search_engine",
+            "relevance_score": 0.8,
+            "id": "1741862948-c2a1e0f6",
+            "created_at": "2025-03-13T18:49:08.161757"
+        },
+        {
+            "url": "https://jamanetwork.com/",
+            "keywords": [
+                "冠心病",
+                "最新治疗方案"
+            ],
+            "source": "search_engine",
+            "relevance_score": 0.75,
+            "id": "1741862948-28f8205e",
+            "created_at": "2025-03-13T18:49:08.162534"
+        },
+        {
+            "url": "https://www.bmj.com/",
+            "keywords": [
+                "冠心病",
+                "最新治疗方案"
+            ],
+            "source": "search_engine",
+            "relevance_score": 0.7,
+            "id": "1741862948-2a0de56c",
+            "created_at": "2025-03-13T18:49:08.163134"
+        }
+    ],
+    "status": "success",
+    "message": "处理成功"
+}

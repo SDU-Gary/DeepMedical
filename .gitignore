@@ -1,0 +1,127 @@
+# === 通用忽略规则 ===
+# 系统文件
+.DS_Store
+Thumbs.db
+*.bak
+*.swp
+*.tmp
+*.log
+
+# 编辑器/IDE
+.vscode/
+.idea/
+*.code-workspace
+.sublime-*
+.atom/
+.eclipse/
+
+# 本地环境配置
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+!.env.example
+!*.env.example
+
+# 临时文件和日志
+logs/
+log/
+tmp/
+temp/
+*.tmp
+*.temp
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# === 依赖与缓存目录 ===
+# Node.js
+node_modules/
+.npm/
+.pnpm-store/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.venv/
+venv/
+ENV/
+env/
+
+# === 构建产物 ===
+dist/
+build/
+out/
+*.min.js
+*.min.css
+
+# 包管理器锁文件 (保留特定的锁文件)
+# 保留：pnpm-lock.yaml, poetry.lock, uv.lock
+package-lock.json
+yarn.lock
+
+# === 子项目特定规则 ===
+# DeepMedical-web (Next.js 前端应用)
+/.next/
+/.output/
+.next/
+.vercel/
+.turbo/
+next-env.d.ts
+
+# DM-crawler (Python 爬虫服务)
+*.egg-info/
+*.so
+*.pyd
+*.egg
+.scrapy/
+crawler_data/
+.pyc
+cov*/
+.pytest_cache/
+
+# DM_input_processer (Python 处理服务)
+**/data/search_cache/*.json
+**/data/index/*.json
+**/static/browser_history/*.gif
+input_data/
+output_data/
+**/cache/*
+
+# 数据库相关
+*.sqlite3
+*.db
+*.sqlite
+mongodb_data/
+
+# === 媒体与资源文件 (根据项目需要调整) ===
+# 仅在必要时忽略图片和媒体文件
+# 取消以下注释如果需要忽略特定媒体文件
+# *.png
+# *.jpg
+# *.jpeg
+# *.gif
+# *.pdf
+
+# 压缩包和大型二进制文件
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# === 项目特定文件 ===
+.windsurfrules
+
+# === Docker 相关文件 ===
+# 保留 Dockerfile 和 docker-compose.yml
+docker-data/
+*.dockerignore
