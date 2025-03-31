@@ -121,6 +121,9 @@ mongodb_data/
 # === 项目特定文件 ===
 .windsurfrules
 
+# === 项目文件 ===
+周报/
+
 # === Docker 相关文件 ===
 # 保留 Dockerfile 和 docker-compose.yml
 docker-data/

@@ -1,12 +1,12 @@
 ---
 name: Feature Request
-about: Suggest an idea or improvement for LangManus
+about: Suggest an idea or improvement for DeepMedical
 title: ''
 labels: enhancement
 
 ---
 
-Thank you for your support and contribution to LangManus!
+Thank you for your support and contribution to DeepMedical!
 
 **Is your feature request related to a problem? Please describe.**
 A clear and concise description of the problem or limitation. For example: "I'm always frustrated when [...]"

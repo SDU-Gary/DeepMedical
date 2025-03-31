@@ -37,7 +37,7 @@ export const useStore = create<{
 export function useInitTeamMembers() {
   useEffect(() => {
     const enabledTeamMembers = localStorage.getItem(
-      "langmanus.config.enabledTeamMembers",
+      "deepmedical.config.enabledTeamMembers",
     );
     void queryTeamMembers().then((teamMembers) => {
       useStore.setState({
@@ -53,7 +53,7 @@ export function useInitTeamMembers() {
 export function setEnabledTeamMembers(enabledTeamMembers: string[]) {
   useStore.setState({ enabledTeamMembers });
   localStorage.setItem(
-    "langmanus.config.enabledTeamMembers",
+    "deepmedical.config.enabledTeamMembers",
     JSON.stringify(enabledTeamMembers),
   );
 }

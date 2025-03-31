@@ -51,7 +51,7 @@ export function InputBox({
 
   const saveConfig = useCallback(() => {
     localStorage.setItem(
-      "langmanus.config.inputbox",
+      "deepmedical.config.inputbox",
       JSON.stringify({ deepThinkingMode, searchBeforePlanning }),
     );
   }, [deepThinkingMode, searchBeforePlanning]);
@@ -97,7 +97,7 @@ export function InputBox({
   );
 
   useEffect(() => {
-    const config = localStorage.getItem("langmanus.config.inputbox");
+    const config = localStorage.getItem("deepmedical.config.inputbox");
     if (config) {
       const { deepThinkingMode, searchBeforePlanning } = JSON.parse(config);
       setDeepThinkMode(deepThinkingMode);
