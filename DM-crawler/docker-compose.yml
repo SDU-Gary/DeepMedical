@@ -4,22 +4,22 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: langmanus-backend
+    container_name: deepmedical-backend
     ports:
       - "8000:8000"
     environment:
       - CHROME_HEADLESS=True
     restart: unless-stopped
     networks:
-      - langmanus-network
+      - deepmedical-network
 
   frontend:
     build:
-      context: https://github.com/jokyun/langmanus-web.git
+      context: ../DeepMedical-web
       dockerfile: Dockerfile
       args:
         - NEXT_PUBLIC_API_URL=http://localhost:8000/api
-    container_name: langmanus-frontend
+    container_name: deepmedical-frontend
     ports:
       - "3000:3000"
     environment:
@@ -28,8 +28,8 @@ services:
       - backend
     restart: unless-stopped
     networks:
-      - langmanus-network
+      - deepmedical-network
 
 networks:
-  langmanus-network:
+  deepmedical-network:
     driver: bridge
