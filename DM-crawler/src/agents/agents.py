@@ -5,6 +5,7 @@ from src.tools import (
     bash_tool,
     browser_tool,
     crawl_tool,
+    fast_abstract_tool,
     python_repl_tool,
     tavily_tool,
 )
@@ -24,6 +25,7 @@ def create_agent(agent_type: str, tools: list, prompt_template: str):
 
 
 # Create agents using the factory function
-research_agent = create_agent("researcher", [tavily_tool, crawl_tool], "researcher")
+research_agent = create_agent("researcher", [tavily_tool, crawl_tool, fast_abstract_tool], "researcher")
 coder_agent = create_agent("coder", [python_repl_tool, bash_tool], "coder")
 browser_agent = create_agent("browser", [browser_tool], "browser")
+translator_agent = create_agent("translator", [], "translator")

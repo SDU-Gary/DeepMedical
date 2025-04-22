@@ -1,0 +1,35 @@
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: deepmedical-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - CHROME_HEADLESS=True
+    restart: unless-stopped
+    networks:
+      - deepmedical-network
+
+  frontend:
+    build:
+      context: ../DeepMedical-web
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+    container_name: deepmedical-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - deepmedical-network
+
+networks:
+  deepmedical-network:
+    driver: bridge

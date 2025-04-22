@@ -1,0 +1,49 @@
+# URL验证器配置
+
+# 请求超时配置（秒）
+timeout: 5
+
+# 重试策略
+retry_policy:
+  max_attempts: 3       # 最大重试次数
+  backoff: [1, 3, 5]    # 重试间隔时间（秒）
+
+# 黑名单配置
+blacklist:
+  - "*.gov"             # 政府网站
+  - "*.gov.cn"          # 中国政府网站
+  - "*.mil"             # 军事网站
+  - "127.0.0.1"         # 本地主机
+  - "localhost"         # 本地主机
+  - "*.internal"        # 内部网络
+
+# 相关性最低阈值（低于此值的URL将被视为无效）
+relevance_threshold: 0.5
+
+# 医学领域权威网站优先级
+authoritative_domains:
+  - "nejm.org"          # 新英格兰医学期刊
+  - "thelancet.com"     # 柯诺兰塞特
+  - "jamanetwork.com"   # JAMA
+  - "bmj.com"           # 英国医学期刊
+  - "nature.com"        # 自然
+  - "science.org"       # 科学
+  - "cell.com"          # 细胞
+  - "who.int"           # 世界卫生组织
+  - "cdc.gov"           # 美国疾病控制中心
+  - "nih.gov"           # 美国国立卫生研究院
+  - "nhc.gov.cn"        # 中国国家卫生健康委员会
+  - "pumch.cn"          # 北京协和医院
+  - "pubmed.ncbi.nlm.nih.gov" # PubMed
+  - "clinicaltrials.gov" # 临床试验
+  - "cochranelibrary.com" # 科克伦图书馆
+  - "uptodate.com"      # UpToDate
+
+# 用户代理列表
+user_agents:
+  - 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+  - 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15'
+  - 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+  - 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0'
+  - 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+  - 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'

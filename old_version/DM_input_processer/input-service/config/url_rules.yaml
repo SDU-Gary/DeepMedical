@@ -1,0 +1,22 @@
+# URL验证规则配置
+
+groups:
+  - name: url_validation_rules
+    rules:
+      - alert: URLValidationFailure
+        expr: url_validation_failures > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "URL验证失败率过高"
+          description: "{{ $labels.instance }} 的URL验证失败率超过阈值"
+
+      - alert: URLRequestTimeout
+        expr: url_request_duration_seconds > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "URL请求超时"
+          description: "{{ $labels.instance }} 的URL请求平均响应时间超过5秒"

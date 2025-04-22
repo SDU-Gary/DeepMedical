@@ -10,7 +10,7 @@ import json_repair
 from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 
-from src.agents import research_agent, coder_agent, browser_agent
+from src.agents import research_agent, coder_agent, browser_agent, translator_agent
 from src.llms.llm import get_llm_by_type
 from src.config import TEAM_MEMBERS
 from src.config.agents import AGENT_LLM_MAP
@@ -27,8 +27,10 @@ RESPONSE_FORMAT = "Response from {}:\n\n<response>\n{}\n</response>\n\n*Please e
 def research_node(state: State) -> Command[Literal["supervisor"]]:
     """Node for the researcher agent that performs research tasks."""
     logger.info("Research agent starting task")
+
     result = research_agent.invoke(state)
     logger.info("Research agent completed task")
+
     response_content = result["messages"][-1].content
     # 尝试修复可能的JSON输出
     response_content = repair_json_output(response_content)
@@ -44,6 +46,37 @@ def research_node(state: State) -> Command[Literal["supervisor"]]:
         },
         goto="supervisor",
     )
+
+def translator_node(state: State) -> Command[Literal["coordinator"]]:
+    """Node for the translator agent that performs translation from Chinese to English."""
+    logger.info("Translator agent starting task")
+    # 获取用户输入
+    user_input = state.get("user_input", "")
+    logger.debug(f"Translator processing input: {user_input[:100]}...")
+
+    # 调用翻译agent进行处理
+    result = translator_agent.invoke(state)
+    logger.info("Translator agent completed task")
+
+    # 获取响应内容
+    response_content = result["messages"][-1].content
+    # 尝试修复可能的JSON输出
+
+    response_content = repair_json_output(response_content)
+    logger.debug(f"Translator agent response: {response_content}")
+
+    return Command(
+        update={
+            "messages": [
+                HumanMessage(
+                    content=response_content,
+                    name="translator",
+                )
+            ]
+        },
+        goto="planner",
+    )
+
 
 
 def code_node(state: State) -> Command[Literal["supervisor"]]:
@@ -166,9 +199,26 @@ def planner_node(state: State) -> Command[Literal["supervisor", "__end__"]]:
     )
 
 
-def coordinator_node(state: State) -> Command[Literal["planner", "__end__"]]:
+def coordinator_node(state: State) -> Command[Literal["planner", "translator", "__end__"]]:
     """Coordinator node that communicate with customers."""
-    logger.info("Coordinator talking.")
+    logger.info("Coordinator talking...")
+    
+    # 检查是否是初始用户输入
+    is_initial_input = True
+
+    logger.info(f"is_initial_input: {is_initial_input}")
+    
+    # 如果是初始输入，且没有经过翻译处理，则先调用翻译节点
+    if is_initial_input:
+        logger.info("Detected initial user input, routing to translator first")
+        return Command(
+            update={
+                "translation_processed": True  # 标记已经过翻译处理
+            },
+            goto="translator"
+        )
+    
+    # 正常的协调器处理逻辑
     messages = apply_prompt_template("coordinator", state)
     response = get_llm_by_type(AGENT_LLM_MAP["coordinator"]).invoke(messages)
     logger.debug(f"Current state messages: {state['messages']}")

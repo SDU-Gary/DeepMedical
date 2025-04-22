@@ -9,6 +9,7 @@ from .nodes import (
     browser_node,
     reporter_node,
     planner_node,
+    translator_node,
 )
 
 
@@ -17,6 +18,7 @@ def build_graph():
     builder = StateGraph(State)
     builder.add_edge(START, "coordinator")
     builder.add_node("coordinator", coordinator_node)
+    builder.add_node("translator", translator_node)  # 添加翻译节点
     builder.add_node("planner", planner_node)
     builder.add_node("supervisor", supervisor_node)
     builder.add_node("researcher", research_node)
