@@ -18,24 +18,33 @@ from typing import AsyncGenerator, Dict, List, Any
 from src.graph import build_graph
 from src.config import TEAM_MEMBERS, TEAM_MEMBER_CONFIGRATIONS, BROWSER_HISTORY_DIR
 from src.service.workflow_service import run_agent_workflow
-
+from src.service.markdown_service import MarkdownService
+from starlette.responses import JSONResponse
+import re
+from datetime import datetime
 # Configure logging
 logger = logging.getLogger(__name__)
 
 # Create FastAPI app
 app = FastAPI(
+    docs_url="/docs",
+    swagger_js_url="/static/swagger-ui-bundle.js",
+    swagger_css_url="/static/swagger-ui.css",
     title="DeepMedical API",
     description="API for DeepMedical LangGraph-based agent workflow",
     version="0.1.0",
 )
+markdown_service = MarkdownService()
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["http://localhost:3000"],  # Allows all origins
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_headers=["*"],# Allows all headers
+    expose_headers=["Content-Disposition"]  # 允许前端读取下载头
+
 )
 
 # Create the graph
@@ -179,3 +188,68 @@ async def get_team_members():
     except Exception as e:
         logger.error(f"Error getting team members: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+markdown_service = MarkdownService()
+
+@app.post("/api/save-as-markdown")
+async def save_as_markdown(article_data: dict):
+    """保存文章为Markdown文件"""
+    try:
+        # 参数校验
+        if not article_data.get("title") or not article_data.get("content"):
+            raise HTTPException(
+                status_code=400,
+                detail={"status": "error", "message": "标题和内容不能为空"}
+            )
+
+        # 生成安全文件名（使用正则表达式清理）
+        clean_title = re.sub(r'[^\w\u4e00-\u9fa5-]', '_', article_data["title"])[:50]
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        filename = f"{clean_title}_{timestamp}.md"
+
+        # 调用服务层
+        result = markdown_service.save_article_as_markdown({
+            "filename": filename,
+            "content": article_data["content"]
+        })
+
+        if result["status"] == "error":
+            raise HTTPException(status_code=400, detail=result)
+
+        return JSONResponse(content=result)
+
+    except HTTPException as he:
+        raise
+    except Exception as e:
+        logger.error(f"保存失败: {str(e)}", exc_info=True)  # 添加详细异常日志
+        raise HTTPException(
+            status_code=500,
+            detail={"status": "error", "message": "文件保存失败"}
+        )
+
+# 修改下载接口为查询参数形式
+@app.get("/api/download/markdown")
+async def download_markdown(filename: str):
+    try:
+        # 路径安全检查
+        if "../" in filename:
+            raise HTTPException(status_code=400, detail="非法文件名")
+
+        save_dir = os.path.abspath("output/markdowns")
+        filepath = os.path.join(save_dir, filename)
+
+        if not os.path.exists(filepath):
+            logger.error(f"文件未找到: {filename}")
+            raise HTTPException(status_code=404, detail="文件不存在")
+
+        return FileResponse(
+            filepath,
+            media_type="application/octet-stream",
+            filename=filename
+        )
+    except HTTPException as he:
+        raise
+    except Exception as e:
+        logger.error(f"下载失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="服务器内部错误")

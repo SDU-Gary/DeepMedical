@@ -1,5 +1,5 @@
-import { CheckOutlined, CopyOutlined } from "@ant-design/icons";
-import { useState } from "react";
+import { CheckOutlined, CopyOutlined,DownloadOutlined } from "@ant-design/icons";
+import { useState , useEffect} from "react";
 import ReactMarkdown, {
   type Options as ReactMarkdownOptions,
 } from "react-markdown";
@@ -15,6 +15,7 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 import { cn } from "~/core/utils";
+import { DownloadModal } from "~/app/_components/DownloadModal";
 
 export function Markdown({
   className,
@@ -27,6 +28,15 @@ export function Markdown({
   enableCopy?: boolean;
   style?: React.CSSProperties;
 }) {
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [downloadContent, setDownloadContent] = useState("");
+
+  // 初始化下载内容
+  useEffect(() => {
+    if (typeof children === "string") {
+      setDownloadContent(children);
+    }
+  }, [children]);
   return (
     <div
       className={cn(className, "markdown flex flex-col gap-4")}
@@ -47,13 +57,40 @@ export function Markdown({
         {processKatexInMarkdown(children)}
       </ReactMarkdown>
       {enableCopy && typeof children === "string" && (
-        <div className="flex">
+        <>
+          <div className="flex">
           <CopyButton content={children} />
-        </div>
+
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                onClick={() => setIsDownloadModalOpen(true)}
+              >
+                <DownloadOutlined className="h-4 w-4 mr-2" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Downlode</TooltipContent>
+          </Tooltip>
+          </div>
+          <DownloadModal
+            isOpen={isDownloadModalOpen}
+            onClose={() => setIsDownloadModalOpen(false)}
+            articleData={{
+              title: "DM", // 强制使用默认名称
+              content: downloadContent,
+              url: window.location.href
+            }}
+          />
+        </>
       )}
     </div>
   );
 }
+    
 
 function CopyButton({ content }: { content: string }) {
   const [copied, setCopied] = useState(false);

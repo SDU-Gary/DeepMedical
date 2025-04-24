@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import { nanoid } from "nanoid";
 import Image from "next/image";
@@ -138,7 +138,7 @@ export default function HomePage() {
                   "transition-all duration-700 ease-in-out",
                   isConversationMode ? "opacity-0 scale-95" : "opacity-100 scale-100"
                 )}>
-                  赛博华佑，医严定镇
+                  赛博华佗，医严定镇
                 </h3>
                 <div className={cn(
                   "px-4 py-2 rounded-xl bg-white/80 shadow-sm border border-secondary/30 text-center text-lg text-muted-foreground",
@@ -162,7 +162,7 @@ export default function HomePage() {
           {/* 输入框容器 - 带有平滑过渡效果 */}
           <footer
             className={cn(
-              "fixed",
+              "fixed z-30",
               "transform-gpu"
             )}
             style={{

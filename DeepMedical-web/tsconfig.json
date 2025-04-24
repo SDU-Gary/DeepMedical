@@ -15,10 +15,11 @@
     "checkJs": true,
 
     /* Bundled projects */
+    "types": ["node", "express"],
     "lib": ["dom", "dom.iterable", "ES2022"],
     "noEmit": true,
     "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "moduleResolution": "node",
     "jsx": "preserve",
     "plugins": [{ "name": "next" }],
     "incremental": true,
