@@ -39,7 +39,9 @@ async function safeFetch(input: RequestInfo, init?: RequestInit) {
 
 export function DownloadModal({ isOpen, onClose, articleData }: DownloadModalProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [filenameError, setFilenameError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [customFilename, setCustomFilename] = useState<string>('DM');
 
   // 数据合并与校验
   const mergedArticle = useCallback(() => {
@@ -56,21 +58,31 @@ export function DownloadModal({ isOpen, onClose, articleData }: DownloadModalPro
       content: (articleData?.content || defaultData.content).trim()
     };
 
-    // 增强校验逻辑
     if (!merged.content) throw new Error("文档内容不能为空");
     if (merged.content.length < 5) throw new Error("内容需至少5个字符");
 
     return merged;
   }, [articleData])();
 
+  // 文件名校验
+  const validateFilename = useCallback((name: string): string => {
+    const sanitizedName = name
+    .replace(/[^\w\u4e00-\u9fa5\-_.]/g, '_') // 修改正则匹配范围
+    .replace(/_+/g, '_')
+    .slice(0, 120) // 与后端长度限制一致
+    .replace(/^_+|_+$/g, '');
+    
+    return sanitizedName ? `${sanitizedName}.md` : 'DM.md';
+  }, []);
+
   // 保存文件逻辑
-  const saveMarkdownFile = useCallback(async (data: ArticleData) => {
+  const saveMarkdownFile = useCallback(async(data: ArticleData & { filename: string }) => {
     try {
       const response = await safeFetch("/api/save-as-markdown", {
         method: "POST",
         body: JSON.stringify({
           ...data,
-          title: data.title || "DM" // 确保标题存在
+          filename: data.filename // 添加文件名参数
         })
       });
       return response.json();
@@ -85,28 +97,42 @@ export function DownloadModal({ isOpen, onClose, articleData }: DownloadModalPro
     try {
       setIsSubmitting(true);
       setErrorMessage(null);
-  
-      // 生成规范文件名
+      setFilenameError(null);
+
       
-      const filename = `DM.md`;
-  
-      // 保存文件（确保传递完整内容）
-      await saveMarkdownFile({
-        ...mergedArticle,
-        title: filename,
-        content: mergedArticle.content // 显式传递内容
-      });
-  
-      // 触发下载（添加延迟确保文件生成）
+
+      // 校验并处理文件名
+      const processedFilename = validateFilename(customFilename);
+      if (processedFilename !== customFilename) {
+        setFilenameError('文件名包含非法字符，已自动修正');
+      }
+
+      // 生成最终文件名
+      const filename = processedFilename.replace('.md', ''); // 移除扩展名用于标题
+      
+      // 保存文件
+      // 保存文件并获取服务端返回的真实文件名
+    const saveResult = await saveMarkdownFile({
+      ...mergedArticle,
+      filename: processedFilename,
+      content: mergedArticle.content
+    });
+    if (saveResult.status === 'error') {
+      throw new Error(saveResult.message || "文件保存失败");
+    }
+    // 使用服务端返回的文件名（关键修改）
+    const serverFilename = saveResult.saved_filename; 
+
+      // 触发下载
       await new Promise(resolve => setTimeout(resolve, 500));
       
       const link = document.createElement("a");
-      link.href = `/api/download/markdown?filename=${encodeURIComponent(filename)}`;
-      link.setAttribute("download", filename);
+      link.href = `/api/download/markdown?filename=${encodeURIComponent(processedFilename)}`;
+      link.setAttribute("download", serverFilename);
       document.body.appendChild(link);
       link.click();
       link.remove();
-  
+
       toast.success("文件下载已开始");
       onClose();
     } catch (error) {
@@ -116,10 +142,14 @@ export function DownloadModal({ isOpen, onClose, articleData }: DownloadModalPro
     } finally {
       setIsSubmitting(false);
     }
-  }, [mergedArticle, onClose]);
+  }, [mergedArticle, onClose, customFilename, validateFilename]);
 
+  // 重置状态
   useEffect(() => {
-    if (!isOpen) setErrorMessage(null);
+    if (!isOpen) {
+      setCustomFilename('DM');
+      setFilenameError(null);
+    }
   }, [isOpen]);
 
   return (
@@ -135,11 +165,31 @@ export function DownloadModal({ isOpen, onClose, articleData }: DownloadModalPro
           </div>
         )}
 
+        {/* 新增文件名输入 */}
+        <div className="space-y-3 mb-4">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="输入文件名（默认：DM）"
+              value={customFilename}
+              onChange={(e) => setCustomFilename(e.target.value)}
+              className="flex-1 px-4 py-2 border rounded-md focus:ring-2 focus:#0077b6"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleDownload();
+              }}
+            />
+          </div>
+          
+          {filenameError && (
+            <p className="text-sm text-red-600">{filenameError}</p>
+          )}
+        </div>
+
         <div className="space-y-3">
           <Button 
             onClick={handleDownload}
             disabled={isSubmitting}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+            className="w-full hover:#0077b6 text-white"
           >
             {isSubmitting ? (
               <span className="flex items-center">

@@ -31,63 +31,30 @@ class MarkdownService:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Markdown 输出目录: {self.output_dir.absolute()}")
 
+
     # 修改保存方法
     def save_article_as_markdown(self, request_data: dict) -> dict:
-        """保存Markdown文档的主方法"""
         try:
-            # =====================
-            # 文件名生成模块
-            # =====================
-            filename = "DM.md"
-
-            # =====================
-            # 内容验证模块
-            # =====================
+            # 强制使用处理后的文件名
+            processed_name = self.sanitize_filename(request_data["filename"])
             content = request_data.get("content", "")
-            if not content.strip():
-                self.logger.error("内容验证失败：空内容")
-                return {
-                    "status": "error",
-                    "message": "内容不能为空",
-                    "error_code": "CONTENT_EMPTY"
-                }
 
-            # =====================
-            # 文件路径处理模块
-            # =====================
-            save_dir = os.path.abspath("output/markdowns")
-            try:
-                os.makedirs(save_dir, exist_ok=True)
-            except PermissionError as pe:
-                self.logger.critical(f"目录创建权限不足: {str(pe)}")
-                return {
-                    "status": "error",
-                    "message": "系统权限不足",
-                    "error_code": "PERMISSION_DENIED"
-                }
+            final_filename = processed_name
 
-            filepath = os.path.join(save_dir, filename)
+            filepath = self.output_dir / final_filename
 
-            # =====================
-            # 文件写入模块（带重试机制）
-            # =====================
-            retry_count = 0
-            max_retries = 2
-            while retry_count < max_retries:
-                try:
-                    with open(filepath, "w", encoding="utf-8") as f:
-                        byte_count = f.write(content)
-                        self.logger.info(f"成功写入 {byte_count} 字节 -> {filepath}")
-                        return {
-                            "status": "success",
-                            "filename": filename,
-                            "byte_size": byte_count
-                        }
-                except (IOError, OSError) as e:
-                    retry_count += 1
-                    self.logger.warning(f"文件写入失败（尝试 {retry_count}/{max_retries}）: {str(e)}")
-                    if retry_count >= max_retries:
-                        raise
+            # 写入文件（添加存在性检查）
+            if filepath.exists():
+                raise FileExistsError("文件已存在，请重命名")
+
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(content)
+
+            return {
+                "status": "success",
+                "saved_filename": final_filename,  # 返回实际存储名
+                "byte_size": len(content)
+            }
 
         # =====================
         # 异常处理模块
@@ -115,9 +82,16 @@ class MarkdownService:
             }
 
     # 在MarkdownService中添加安全校验
-    def _sanitize_filename(self, filename: str) -> str:
-        """清理文件名中的非法字符"""
-        return "".join(c for c in filename if c.isalnum() or c in ('_', '-', '.')).rstrip()
+    def sanitize_filename(self, filename: str) -> str:
+        """统一文件名处理规则"""
+        # 先移除现有的 .md 扩展名
+        base = re.sub(r'\.md$', '', filename.strip(), flags=re.IGNORECASE)
+        # 清理非法字符并限制长度
+        cleaned = re.sub(r'[^\w\u4e00-\u9fa5\-_.]', '_', base)
+        cleaned = cleaned[:120].strip('_')
+        cleaned = cleaned if cleaned else 'DM'
+        # 添加 .md 扩展名
+        return f"{cleaned}.md"
 
     def _extract_domain(self, url: str) -> str:
         """从URL提取域名"""

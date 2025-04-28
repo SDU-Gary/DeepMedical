@@ -10,6 +10,7 @@ from typing import Dict, List, Any, Optional, Union
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from poetry.console.commands import self
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 import asyncio
@@ -21,6 +22,7 @@ from src.service.workflow_service import run_agent_workflow
 from src.service.markdown_service import MarkdownService
 from starlette.responses import JSONResponse
 import re
+from urllib.parse import quote
 from datetime import datetime
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -190,66 +192,56 @@ async def get_team_members():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-markdown_service = MarkdownService()
+
 
 @app.post("/api/save-as-markdown")
 async def save_as_markdown(article_data: dict):
     """保存文章为Markdown文件"""
     try:
         # 参数校验
-        if not article_data.get("title") or not article_data.get("content"):
-            raise HTTPException(
-                status_code=400,
-                detail={"status": "error", "message": "标题和内容不能为空"}
-            )
+        required_fields = ["filename", "content"]
+        for field in required_fields:
+            if field not in article_data:
+                raise HTTPException(400, detail=f"Missing required field: {field}")
 
-        # 生成安全文件名（使用正则表达式清理）
-        clean_title = re.sub(r'[^\w\u4e00-\u9fa5-]', '_', article_data["title"])[:50]
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        filename = f"{clean_title}_{timestamp}.md"
-
-        # 调用服务层
-        result = markdown_service.save_article_as_markdown({
-            "filename": filename,
-            "content": article_data["content"]
-        })
+        # 调用服务保存
+        result = markdown_service.save_article_as_markdown(article_data)
 
         if result["status"] == "error":
-            raise HTTPException(status_code=400, detail=result)
+            raise HTTPException(400, detail=result)
 
         return JSONResponse(content=result)
 
     except HTTPException as he:
         raise
     except Exception as e:
-        logger.error(f"保存失败: {str(e)}", exc_info=True)  # 添加详细异常日志
-        raise HTTPException(
-            status_code=500,
-            detail={"status": "error", "message": "文件保存失败"}
-        )
+        raise HTTPException(500, detail=str(e))
+
 
 # 修改下载接口为查询参数形式
 @app.get("/api/download/markdown")
 async def download_markdown(filename: str):
     try:
-        # 路径安全检查
-        if "../" in filename:
-            raise HTTPException(status_code=400, detail="非法文件名")
+        # 严格匹配存储的文件名格式
+        if not re.match(r"^[\w\u4e00-\u9fa5\-_.]+\.md$", filename):
+            raise HTTPException(400, "无效文件名格式")
 
-        save_dir = os.path.abspath("output/markdowns")
-        filepath = os.path.join(save_dir, filename)
+        filepath = markdown_service.output_dir / filename
 
-        if not os.path.exists(filepath):
-            logger.error(f"文件未找到: {filename}")
-            raise HTTPException(status_code=404, detail="文件不存在")
+        # 增强存在性检查
+        if not filepath.is_file():
+            raise HTTPException(404, detail={
+                "error_code": "FILE_NOT_FOUND",
+                "suggested": "使用/api/list获取有效文件列表"
+            })
 
-        return FileResponse(
-            filepath,
-            media_type="application/octet-stream",
-            filename=filename
-        )
+        # 记录下载日志
+        logger.info(f"下载文件: {filename} 大小: {filepath.stat().st_size}字节")
+        return FileResponse(filepath)
+
     except HTTPException as he:
         raise
+    except ValueError as ve:
+        raise HTTPException(400, detail=str(ve))
     except Exception as e:
-        logger.error(f"下载失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="服务器内部错误")
+        raise HTTPException(500, detail=str(e))
