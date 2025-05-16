@@ -68,3 +68,4 @@ function parseEvent<T extends StreamEvent>(chunk: string) {
     data: resultData,
   } as T;
 }
+

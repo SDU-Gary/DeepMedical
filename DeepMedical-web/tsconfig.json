@@ -15,7 +15,7 @@
     "checkJs": true,
 
     /* Bundled projects */
-    "types": ["node", "express"],
+    "types": ["node"],
     "lib": ["dom", "dom.iterable", "ES2022"],
     "noEmit": true,
     "module": "ESNext",

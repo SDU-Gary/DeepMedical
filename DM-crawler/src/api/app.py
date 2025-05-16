@@ -7,18 +7,21 @@ import logging
 import os
 from typing import Dict, List, Any, Optional, Union
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 import asyncio
 from typing import AsyncGenerator, Dict, List, Any
+from sqlalchemy.orm import Session
 
 from src.graph import build_graph
 from src.config import TEAM_MEMBERS, TEAM_MEMBER_CONFIGRATIONS, BROWSER_HISTORY_DIR
 from src.service.workflow_service import run_agent_workflow
 from src.service.markdown_service import MarkdownService
+from src.service.session_service import SessionService
+from src.database.db import get_db
 from starlette.responses import JSONResponse
 import re
 from datetime import datetime
@@ -79,6 +82,24 @@ class ChatRequest(BaseModel):
         False, description="Whether to search before planning"
     )
     team_members: Optional[list] = Field(None, description="enabled team members")
+    session_id: Optional[str] = Field(None, description="Session ID for continuing a conversation")
+
+
+# 会话模型
+class SessionResponse(BaseModel):
+    id: str
+    created_at: datetime
+    updated_at: datetime
+
+# 创建会话请求
+class CreateSessionRequest(BaseModel):
+    user_id: Optional[str] = None
+
+# 会话历史响应
+class SessionHistoryResponse(BaseModel):
+    session_id: str
+    messages: List[Dict[str, Any]]
+    state: Optional[Dict[str, Any]] = None
 
 
 @app.post("/api/chat/stream")
@@ -119,21 +140,42 @@ async def chat_endpoint(request: ChatRequest, req: Request):
 
         async def event_generator():
             try:
+                # 传递session_id参数
+                session_id = None
                 async for event in run_agent_workflow(
                     messages,
                     request.debug,
                     request.deep_thinking_mode,
                     request.search_before_planning,
                     request.team_members,
+                    request.session_id,  # 传递session_id
                 ):
+                    # 获取返回的session_id
+                    if event.get("type") == "session_id" or event.get("event") == "session_id":
+                        # 兼容两种事件格式
+                        session_id = event.get("data", {}).get("session_id")
+                    
                     # Check if client is still connected
                     if await req.is_disconnected():
                         logger.info("Client disconnected, stopping workflow")
                         break
+                    # 兼容两种事件格式
+                    event_type = event.get("type") or event.get("event")
+                    event_data = event.get("data", {})
+                    
                     yield {
-                        "event": event["event"],
-                        "data": json.dumps(event["data"], ensure_ascii=False),
+                        "event": event_type,
+                        "data": json.dumps(event_data, ensure_ascii=False),
                     }
+                
+                # 在最后一个事件后返回session_id
+                if session_id:
+                    # 手动格式化SSE字符串，确保正确的格式
+                    event_name = "session_id"
+                    data_payload = json.dumps({"session_id": session_id}, ensure_ascii=False)
+                    sse_message = f"event: {event_name}\ndata: {data_payload}\n\n"
+                    logger.info(f"Yielding session_id event for session: {session_id}")
+                    yield sse_message
             except asyncio.CancelledError:
                 logger.info("Stream processing cancelled")
                 raise
@@ -191,6 +233,107 @@ async def get_team_members():
 
 
 markdown_service = MarkdownService()
+
+# 创建新会话
+@app.post("/api/session", response_model=SessionResponse)
+async def create_session(
+    request: CreateSessionRequest, 
+    db: Session = Depends(get_db)
+):
+    """创建新会话"""
+    try:
+        session = await SessionService.create_session(db, request.user_id)
+        return {
+            "id": session.id,
+            "created_at": session.created_at,
+            "updated_at": session.updated_at
+        }
+    except Exception as e:
+        logger.error(f"Error creating session: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 初始化聊天会话
+@app.post("/api/chat/initiate", response_model=dict)
+async def initiate_chat(
+    request: dict, 
+    req: Request,
+    db: Session = Depends(get_db)
+):
+    """初始化聊天会话，创建会话ID并处理第一条消息
+    
+    Args:
+        request: 包含用户第一条消息和配置的请求
+        req: FastAPI请求对象
+        db: 数据库会话
+        
+    Returns:
+        包含会话ID和初始响应的字典
+    """
+    try:
+        # 创建新会话
+        session = await SessionService.create_session(db)
+        session_id = session.id
+        logger.info(f"Created new session: {session_id}")
+        
+        # 构造消息
+        message = {
+            "role": "user",
+            "content": request.get("message", "")
+        }
+        
+        # 保存第一条消息
+        await SessionService.add_message(
+            db, 
+            session_id=session_id,
+            role=message["role"],
+            content=message["content"],
+            message_type="text"  # 显式指定消息类型为text
+        )
+        
+        return {
+            "session_id": session_id,
+            "initial_messages": [],  # 如果需要立即返回初始回复，可以在这里添加
+            "status": "success"
+        }
+    except Exception as e:
+        logger.error(f"Error initiating chat: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 获取会话历史
+@app.get("/api/session/{session_id}/history", response_model=SessionHistoryResponse)
+async def get_session_history(
+    session_id: str, 
+    db: Session = Depends(get_db)
+):
+    """获取会话历史"""
+    try:
+        # 获取会话
+        session = await SessionService.get_session(db, session_id)
+        if not session:
+            logger.warning(f"Session {session_id} not found")
+            raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+        
+        # 获取会话消息
+        messages = await SessionService.get_session_messages(db, session_id)
+        formatted_messages = await SessionService.format_messages_for_frontend(messages)
+        
+        # 确保state字段存在
+        state = session.state if session.state else {}
+        
+        # 记录详细日志
+        logger.info(f"Retrieved history for session {session_id}: {len(formatted_messages)} messages")
+        logger.debug(f"Session state: {state}")
+        
+        return {
+            "session_id": session_id,
+            "messages": formatted_messages,
+            "state": state
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving session history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/save-as-markdown")
 async def save_as_markdown(article_data: dict):

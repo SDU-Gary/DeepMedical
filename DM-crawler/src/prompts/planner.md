@@ -63,4 +63,3 @@ interface Plan {
 - 始终使用translator翻译用户语言为英语。
 {% endif %}
 {% endfor %}
-- 始终使用与用户相同的语言。

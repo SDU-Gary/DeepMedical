@@ -71,6 +71,8 @@ function MessageView({ message }: { message: Message }) {
       </div>
     );
   } else if (message.type === "workflow") {
+    console.log(`MessageView: Workflow message ID ${message.id}, message.content:`, JSON.stringify(message.content, null, 2));
+    console.log(`MessageView: Workflow message ID ${message.id}, message.content.workflow:`, JSON.stringify(message.content?.workflow, null, 2)); // 使用可选链
     return (
       <WorkflowProgressView
         className="mb-8"

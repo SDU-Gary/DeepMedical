@@ -64,7 +64,7 @@ class FastAbstractToolInput(BaseModel):
     """医学文献快速搜索工具的输入模型"""
     query: str = Field(..., description="搜索关键词或医学问题")
     num_results: int = Field(5, description="需要的结果数量")
-    sources: List[str] = Field(default=["pubmed"], description="要搜索的来源，可选值包括：pubmed, google_scholar, medline等")
+    sources: List[str] = Field(default=["pubmed"], description="要搜索的来源，可选值包括：pubmed")
 
 class FastAbstractTool(BaseTool):
     name: str = "fast_abstract_tool"
@@ -90,7 +90,6 @@ class FastAbstractTool(BaseTool):
             run_manager.on_text("同步调用，开始执行异步核心逻辑...\n", verbose=True)
 
         try:
-            # asyncio.run() 会在此线程中创建、运行并关闭一个新的事件循环
             result = asyncio.run(self._arun(
                 query=query,
                 num_results=num_results,
@@ -99,16 +98,18 @@ class FastAbstractTool(BaseTool):
             ))
             if run_manager:
                  run_manager.on_text("异步核心逻辑执行完毕。\n", verbose=True)
+
+            logger.info(f"_run completed successfully. Result: {result}")
+
             return result
+
         except Exception as e:
             logger.error(f"Failed to execute _arun using asyncio.run() from _run: {e}", exc_info=True)
-            # 向 LangChain 框架返回一个有意义的错误信息
             error_message = f"Error: Tool execution failed during synchronous fallback. Details: {e}"
-            # 也可以尝试通过 run_manager 报告错误，如果 run_manager 存在
             if run_manager:
                  run_manager.on_text(f"❌ {error_message}\n", verbose=True)
             # 返回错误信息或者根据需要抛出异常（但这可能中断流程）
-            return error_message # 返回错误信息字符串通常更安全
+            return error_message 
 
 
     # --- 需要创建一个同步的 PubMed 获取方法 ---
@@ -213,10 +214,11 @@ class FastAbstractTool(BaseTool):
                 await run_manager.on_text(f"原始查询: '{query}'\n", verbose=True)
             try:
                 logger.debug(f"尝试翻译查询: '{query}'")
-                # --- 使用 await 调用异步翻译 ---
-                translation_query = translator.translate(query, dest='en', src='auto')
-                # translation_query = translation_query.text
 
+                from src.tools.translate_tool import translate_tool
+                translation_result = translate_tool(text=query, source_lang="auto", target_lang="en")
+                translation_query = translation_result["translated_text"]
+                
                 logger.debug(f"查询已翻译为英文: '{translation_query}'")
                 if run_manager:
                     await run_manager.on_text(f"查询已翻译为英文: '{translation_query}'\n", verbose=True)

@@ -4,7 +4,7 @@ import requests
 import re
 import logging
 from bs4 import BeautifulSoup
-from typing import List, Dict, Optional
+from typing import List, Dict
 import time # 仍然建议保留延时
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ def run_pubmed(query: str, num_results: int) -> List[Dict[str, str]]:
     Returns:
         包含 pmid, title, abstract, url 的字典列表。
     """
-    logger.info(f"开始最小改动版 PubMed 爬取: query='{query}', num_results={num_results}")
+    logger.info(f"开始 PubMed 爬取: query='{query}', num_results={num_results}")
     collected_results = [] # 用于存储结果
 
     # --- 原 PubMed.py 逻辑开始 (输入部分被替换) ---
@@ -133,14 +133,12 @@ def run_pubmed(query: str, num_results: int) -> List[Dict[str, str]]:
         page += 1
         time.sleep(0.5) # 建议在翻页前稍作停顿
 
-    # --- 原 PubMed.py 逻辑结束 ---
-
     # --- > 返回收集到的结果列表 < ---
-    logger.info(f"最小改动版 PubMed 爬取完成，共收集 {downloaded_count} 篇文章信息。")
+    logger.info(f" PubMed 爬取完成，共收集 {downloaded_count} 篇文章信息。")
     return collected_results
     # --- > 返回结束 < ---
 
-# # 用于独立测试 (可选)
+# 用于独立测试
 # if __name__ == "__main__":
 #     logging.basicConfig(level=logging.DEBUG)
 #     test_query = "coronary heart disease"

@@ -63,6 +63,15 @@ export interface MessageEvent
     }
   > {}
 
+// 新增会话ID事件类型
+export interface SessionIdEvent
+  extends GenericChatEvent<
+    "session_id",
+    {
+      session_id: string;
+    }
+  > {}
+
 export type ChatEvent =
   | StartOfReportEvent
   | EndOfReportEvent
@@ -75,7 +84,8 @@ export type ChatEvent =
   | ToolCallResultEvent
   | StartOfLLMEvent
   | EndOfLLMEvent
-  | MessageEvent;
+  | MessageEvent
+  | SessionIdEvent;  // 添加会话ID事件类型
 
 export type TeamMember = {
   name: string;

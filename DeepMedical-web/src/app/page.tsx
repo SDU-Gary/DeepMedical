@@ -13,7 +13,7 @@ const ScrollArea = dynamic(
   () => import("~/components/ui/scroll-area").then((mod) => mod.ScrollArea),
   { ssr: false }
 );
-import { sendMessage, useInitTeamMembers, useStore } from "~/core/store";
+import { sendMessage, useInitTeamMembers, useInitSession, useStore } from "~/core/store";
 import { cn } from "~/core/utils";
 
 import { AppHeader } from "./_components/AppHeader";
@@ -49,19 +49,26 @@ export default function HomePage() {
     [],
   );
 
+  // 使用客户端渲染保护
+  const [isMounted, setIsMounted] = useState(false);
+  
+  // 仅在客户端挂载后初始化
+  useEffect(() => {
+    console.log("HomePage mounted effect running");
+    setIsMounted(true);
+    
+    // 检查localStorage中的sessionId
+    const sessionId = localStorage.getItem("deepmedical.session.id");
+    console.log("HomePage: localStorage sessionId:", sessionId);
+  }, []);
+  
+  // 初始化团队成员和会话
   useInitTeamMembers();
+  useInitSession();  // 添加会话初始化
   useAutoScrollToBottom(scrollAreaRef, responding);
   
   // 是否处于对话模式
   const isConversationMode = messages.length > 0;
-
-  // 使用客户端渲染保护
-  const [isMounted, setIsMounted] = useState(false);
-  
-  // 仅在客户端挂载后渲染完整UI
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   // 服务器端或客户端初始渲染时的占位内容
   if (!isMounted) {
